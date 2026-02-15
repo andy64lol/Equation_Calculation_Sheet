@@ -1,0 +1,17 @@
+// Physics ECSP block that counts with exclusive features for physics
+
+spring = hooke{
+    F = 20
+    K = 4
+    L_init = 3
+    L_final = 8
+}
+
+gas = combined_gas_laws{
+    t1 = 2
+    p1 = 4
+    v1 = 8
+    t2 = 6
+    p2 = 8
+    v2 = ?   // unknown, ECS/ECSP will solve
+}

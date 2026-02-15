@@ -1,0 +1,46 @@
+// Main ECS file
+import constants
+import physics
+
+// Basic math
+x = 6(8)               // 48
+y = 12 + 3             // 15
+z = (-5) + 10          // 5
+
+// Quadratic variable
+0 = 4((x2)^2) - 6(x2) + 9
+
+// Roots
+r1 = (2)√(4)           // 2
+r2 = (3)root(27)       // 3
+
+// Indexed variable
+y1(2) = 6
+x3 = y1 + 1            // 4
+
+// Division
+a = (20)/(10)          // 2
+
+// Exponentiation
+b = (x)^(2)            // 48^2 = 2304
+
+// Scientific notation
+c1 = (1.23)e(10)
+c2 = 1.23((10)^(10))
+c3 = 1.23 * (10)^(10)
+
+// Negative numbers
+d = (-7) + 3           // -4
+e = 10 + (-2)          // 8
+
+// Approximation
+f = (1)/(3)            // ≈ 0.33
+
+// Access ECSP block variables
+force = spring.F
+spring_constant = spring.K
+extension = spring.L_final - spring.L_init  // 5
+
+// Access ECS constants
+gravity_value = gravity
+pi_value = pi
