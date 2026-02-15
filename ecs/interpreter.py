@@ -191,16 +191,17 @@ class ECSPBlock:
                     self.unknowns.discard("v")
             if "s" in self.unknowns:
                 if u is not None and a is not None and t is not None:
-                    s_val = (u * t) + (0.5 * a * (t**2))
-                    self.variables["s"] = s_val
+                    s_calc = (u * t) + (0.5 * a * (t**2))
+                    self.variables["s"] = s_calc
                     self.unknowns.discard("s")
             
             # Calculate all possible variables even if not marked as unknown
             if "v" not in self.variables and u is not None and a is not None and t is not None:
                 self.variables["v"] = u + (a * t)
             if "s" not in self.variables and u is not None and a is not None and t is not None:
-                s_val = (u * t) + (0.5 * a * (t**2))
-                self.variables["s"] = s_val
+                s_calc = (u * t) + (0.5 * a * (t**2))
+                self.variables["s"] = s_calc
+                print(f"Calculated displacement s: {s_calc}")
             
             self._check_and_raise_unspecified()
         
@@ -278,6 +279,26 @@ class ECSPBlock:
             
             self._check_and_raise_unspecified()
         
+        elif self.block_type == "gravitation":
+            # Newton's Law of Universal Gravitation: F = G * (m1 * m2) / r^2
+            f = self.variables.get("F")
+            m1 = self.variables.get("m1")
+            m2 = self.variables.get("m2")
+            r = self.variables.get("r")
+            g_const = self.variables.get("G", 6.67430e-11)
+            
+            # Solve for marked unknowns
+            if "F" in self.unknowns:
+                if m1 is not None and m2 is not None and r is not None and r != 0:
+                    self.variables["F"] = g_const * (m1 * m2) / (r**2)
+                    self.unknowns.discard("F")
+            
+            # Calculate all possible variables
+            if "F" not in self.variables and m1 is not None and m2 is not None and r is not None and r != 0:
+                self.variables["F"] = g_const * (m1 * m2) / (r**2)
+            
+            self._check_and_raise_unspecified()
+            
         elif self.block_type == "work_power":
             # Work and power: W = F * d, P = W / t
             f = self.variables.get("F")
