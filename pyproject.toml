@@ -1,21 +1,12 @@
 [build-system]
-requires = ["setuptools>=45", "wheel"]
+requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ecs"
+name = "Equation_Calculation_Sheet"
 version = "1.0.0"
-description = "ECS - Equation Calculation Sheet: A DSL for mathematical calculations"
+description = "Simple DSL for equations"
+authors = [{name="Andy"}]
 readme = "README.md"
-requires-python = ">=3.7"
-license = { text = "MIT" }
-authors = [{ name = "andy64lol", email = "andy64lolxd@gmail.com" }]
-keywords = ["math", "equation", "calculator", "dsl", "physics", "engineering", "scientific"]
-
-[project.urls]
-Homepage = "https://github.com/andy64lol/ecs"
-BugReports = "https://github.com/andy64lol/ecs/issues"
-Source = "https://github.com/andy64lol/ecs"
-
-[tool.setuptools]
-packages = ["ecs"]
+requires-python = ">=3.9"
+dependencies = []
