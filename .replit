@@ -21,9 +21,9 @@ args = "Run ECS Example"
 name = "Run ECS Example"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd /home/runner/workspace/ecs/example && python3 main.py"
-
-[workflows.workflow.metadata]
-outputType = "console"

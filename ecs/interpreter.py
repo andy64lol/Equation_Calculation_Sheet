@@ -691,7 +691,7 @@ class Interpreter:
         except:
             pass
         
-  ndle negative numbers in parentheses: (-7)
+        # Handle negative numbers in parentheses: (-7)
         if expr.startswith('(') and expr.endswith(')'):
             inner = expr[1:-1].strip()
             if inner.startswith('-'):
