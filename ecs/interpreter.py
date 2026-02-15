@@ -138,14 +138,14 @@ class Interpreter:
                 self.load_sheet(import_name)
             return
         
-        # Handle variable assignment
-        if '=' in line and '{' not in line:
-            self._handle_assignment(line, line_num)
-            return
-        
         # Handle quadratic equation (0 = ...)
         if line.startswith('0 ='):
             self._handle_quadratic(line, line_num)
+            return
+        
+        # Handle variable assignment
+        if '=' in line and '{' not in line:
+            self._handle_assignment(line, line_num)
             return
     
     def _handle_assignment(self, line, line_num):
@@ -161,6 +161,20 @@ class Interpreter:
         # Remove inline comments
         if '//' in expr:
             expr = expr.split('//')[0].strip()
+        
+        # Handle indexed variable assignment: var(n) = value means var * n = value, so var = value / n
+        indexed_assign = re.match(r'^(\w+)\((\d+)\)$', var_name)
+        if indexed_assign:
+            actual_var = indexed_assign.group(1)
+            index = float(indexed_assign.group(2))
+            try:
+                value = self._evaluate_expression(expr)
+            except Exception as e:
+                raise ValueError(f"Error: an ambiguous or undefined variable is found at line {line_num}: {e}")
+            if index != 0:
+                value = value / index
+            self.variables[actual_var] = self._approximate(value)
+            return
         
         # Check for block variable access (block.var)
         if '.' in var_name:
@@ -421,6 +435,14 @@ class Interpreter:
         while prev_expr != expr:
             prev_expr = expr
             expr = re.sub(div_pattern, replace_div, expr)
+        
+        # Handle explicit multiplication with * operator
+        if ' * ' in expr:
+            mul_parts = expr.split(' * ')
+            result = self._evaluate_expression(mul_parts[0])
+            for part in mul_parts[1:]:
+                result *= self._evaluate_expression(part)
+            return self._approximate(result)
         
         # Handle addition and subtraction (must have spaces)
         # Pattern: value + value or value - value

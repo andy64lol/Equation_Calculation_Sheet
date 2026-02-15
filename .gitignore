@@ -1,2 +1,16 @@
 .zencoder/
 .zenflow/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+*.whl
+.mypy_cache/
+.pytest_cache/
