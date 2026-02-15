@@ -52,9 +52,10 @@ c3 = 1.23 * (10)^(10)
 // Negative numbers (must be in parentheses)
 d = (-7) + 3           // -4
 
-// Indexed variables
-y1(2) = 6
-x3 = y1 + 1            // 4
+// Functions
+f(x, y) = 2 (y + x)    // f(x,y) = 2(y + x)
+g(a, b=5) = a + b      // g(a,b) = a + b with default b=5
+h(z) = z + 1           // simple function
 ```
 
 ### Quadratic Equations
@@ -123,13 +124,14 @@ x = ecs.get("x")
 spring_force = ecs.get("spring.F")
 ```
 
-### `ecs.define_var(value)`
+### `ecs.evaluate(func_name, **kwargs)`
 
-Dynamically define a new variable.
+Evaluate a function defined in an .ecs file with given arguments.
 
 ```python
-ecs.define_var(42)      # defines X = 42
-ecs.define_var(100)     # defines X2 = 100
+ecs.evaluate("f", x=4, y=9)     # evaluates f(x, y) = 2(y + x) → 26
+ecs.evaluate("g", a=3)        # evaluates g(a, b=5) with default → 8
+ecs.evaluate("g", a=3, b=10)  # override default → 13
 ```
 
 ## Syntax Rules
@@ -142,6 +144,8 @@ ecs.define_var(100)     # defines X2 = 100
 6. **Roots**: Use `(n)√(x)` or `(n)root(x)` syntax
 7. **Scientific notation**: Use `(mantissa)e(exponent)` or `mantissa((10)^(exponent))`
 8. **Variable reuse**: Overwriting a variable with a different value throws an error
+9. **Functions**: Define with `f(x, y) = expression`. Parameters must be valid variable names (not numeric constants)
+10. **Default parameters**: Use `f(x, y=5) = x + y` syntax
 
 ## Example Files
 
@@ -157,6 +161,11 @@ import constants
 
 x = 6(8)
 y = 12 + 3
+
+// Define functions
+f(x, y) = 2 (y + x)
+g(a, b=5) = a + b
+
 result = (x)^(2) + gravity
 ```
 

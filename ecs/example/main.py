@@ -42,12 +42,9 @@ print("gravity =", ecs.get("gravity"))   # 9.8
 print("pi =", ecs.get("pi"))             # 3.14159
 
 # ----------------------------
-# Dynamically defining a variable
+# Evaluate functions defined in .ecs files
 # ----------------------------
-predefined_variable = 7
-ecs.define_var(predefined_variable)     # internally defines X = 8
-print("X =", ecs.get("X"))              # 8
-
-# Using it in another calculation
-ecs.define_var(ecs.get("X") + 2)       # X = 10
-print("Updated X =", ecs.get("X"))      # 10
+print("f(4, 9) =", ecs.evaluate("f", x=4, y=9))        # 26: 2 * (9 + 4)
+print("g(3) =", ecs.evaluate("g", a=3))                # 8: 3 + 5 (default b=5)
+print("g(3, 10) =", ecs.evaluate("g", a=3, b=10))      # 13: 3 + 10 (override default)
+print("h(5) =", ecs.evaluate("h", z=5))                # 6: 5 + 1

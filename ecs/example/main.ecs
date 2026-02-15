@@ -14,9 +14,13 @@ z = (-5) + 10          // 5
 r1 = (2)√(4)           // 2
 r2 = (3)root(27)       // 3
 
-// Indexed variable
-y1(2) = 6
-x3 = y1 + 1            // 4
+// Functions
+f(x, y) = 2 (y + x)    // f(x,y) = 2(y + x)
+g(a, b=5) = a + b      // g(a,b) = a + b with default b=5
+h(z) = z + 1           // simple function
+
+// Variables for function examples
+x3 = 4                 // 4
 
 // Division
 a = (20)/(10)          // 2

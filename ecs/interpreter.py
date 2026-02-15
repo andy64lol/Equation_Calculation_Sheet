@@ -3,6 +3,40 @@ import re
 import math
 
 
+class Function:
+    """Represents a user-defined function with parameters and expression."""
+    
+    def __init__(self, name, params, defaults, expression):
+        self.name = name
+        self.params = params  # List of parameter names
+        self.defaults = defaults  # Dict of param_name -> default_value
+        self.expression = expression  # Expression body as string
+    
+    def evaluate(self, interpreter, **kwargs):
+        """Evaluate the function with given arguments."""
+        # Create local scope
+        local_vars = {}
+        
+        # Apply default values first
+        for param in self.params:
+            if param in self.defaults:
+                local_vars[param] = self.defaults[param]
+        
+        # Override with provided arguments
+        for param, value in kwargs.items():
+            if param not in self.params:
+                raise ValueError(f"Function '{self.name}' does not have parameter '{param}'")
+            local_vars[param] = value
+        
+        # Check all required parameters are provided
+        for param in self.params:
+            if param not in local_vars:
+                raise ValueError(f"Missing required parameter '{param}' for function '{self.name}'")
+        
+        # Evaluate expression with local variables
+        return interpreter._evaluate_expression_with_locals(self.expression, local_vars)
+
+
 class ECSPBlock:
     """Represents an ECSP block with a type and variables."""
     
@@ -338,7 +372,7 @@ class Interpreter:
         self.variables = {}
         self.blocks = {}
         self.imported_files = set()
-        self.dynamic_var_counter = 0
+        self.functions = {}
     
     def load_sheet(self, filename):
         """Load an .ecs or .ecsp file."""
@@ -379,7 +413,17 @@ class Interpreter:
         
         # Handle quadratic equation (0 = ...)
         if line.startswith('0 ='):
-            self._handle_quadratic(line, line_num)
+            # Check if it's a linear equation (no squared term)
+            if not re.search(r'\(\(\w+\)\^2\)', line) and not re.search(r'\(\w+\)\^2', line):
+                self._handle_linear(line, line_num)
+            else:
+                self._handle_quadratic(line, line_num)
+            return
+        
+        # Handle function definition: f(x, y) = expression
+        func_match = re.match(r'^(\w+)\s*\(([^)]*)\)\s*=\s*(.+)$', line)
+        if func_match:
+            self._handle_function_definition(func_match, line, line_num)
             return
         
         # Handle variable assignment
@@ -401,23 +445,17 @@ class Interpreter:
         if '//' in expr:
             expr = expr.split('//')[0].strip()
         
-        # Handle indexed variable assignment: var(n) = value means var * n = value
-        indexed_assign = re.match(r'^(\w+)\((\d+)\)$', var_name)
-        if indexed_assign:
-            actual_var = indexed_assign.group(1)
-            index = float(indexed_assign.group(2))
-            try:
-                value = self._evaluate_expression(expr)
-            except Exception as e:
-                raise ValueError(f"Error evaluating expression at line {line_num}: {e}")
-            if index != 0:
-                value = value / index
-            self.variables[actual_var] = self._approximate(value)
-            return
-        
         # Check for block variable access (block.var)
         if '.' in var_name:
             raise ValueError(f"Error: Cannot assign to block variable directly at line {line_num}")
+        
+        # Check for indexed variable assignment (numeric constants not allowed as parameters)
+        indexed_assign = re.match(r'^(\w+)\((\d+)\)$', var_name)
+        if indexed_assign:
+            raise ValueError(
+                f"Error: Numeric constants not allowed as parameters at line {line_num}. "
+                f"Use '{indexed_assign.group(1)} = ({expr})/({indexed_assign.group(2)})' instead."
+            )
         
         # Evaluate the expression
         try:
@@ -436,6 +474,128 @@ class Interpreter:
                 raise ValueError(f"Error: '{var_name}' is inconsistent at line {line_num}")
         
         self.variables[var_name] = value
+    
+    def _handle_function_definition(self, match, line, line_num):
+        """Handle function definition like f(x, y=1) = x + y."""
+        func_name = match.group(1)
+        params_str = match.group(2).strip()
+        expression = match.group(3).strip()
+        
+        # Remove inline comments from expression
+        if '//' in expression:
+            expression = expression.split('//')[0].strip()
+        
+        # Parse parameters
+        params = []
+        defaults = {}
+        
+        if params_str:
+            for param in params_str.split(','):
+                param = param.strip()
+                if '=' in param:
+                    # Parameter with default value
+                    parts = param.split('=', 1)
+                    param_name = parts[0].strip()
+                    default_expr = parts[1].strip()
+                    
+                    # Validate: parameter name must be a valid identifier, not a number
+                    if not re.match(r'^[a-zA-Z_]\w*$', param_name):
+                        raise ValueError(
+                            f"Error: Invalid parameter name '{param_name}' at line {line_num}. "
+                            f"Parameter names must be valid variable names, not numeric constants."
+                        )
+                    
+                    # Evaluate default value
+                    try:
+                        default_value = self._evaluate_expression(default_expr)
+                    except Exception as e:
+                        raise ValueError(f"Error evaluating default value for '{param_name}' at line {line_num}: {e}")
+                    
+                    params.append(param_name)
+                    defaults[param_name] = default_value
+                else:
+                    # Parameter without default
+                    # Validate: parameter name must be a valid identifier, not a number
+                    if not re.match(r'^[a-zA-Z_]\w*$', param):
+                        raise ValueError(
+                            f"Error: Invalid parameter '{param}' at line {line_num}. "
+                            f"Use variable names as parameters, not numeric constants. "
+                            f"Example: define 'x = {param}' first, then 'f(x) = ...'"
+                        )
+                    params.append(param)
+        
+        # Store the function
+        self.functions[func_name] = Function(func_name, params, defaults, expression)
+    
+    def _handle_linear(self, line, line_num):
+        """Handle linear equation of form 0 = b(x) + c."""
+        # Extract the equation part after 0 =
+        eq_part = line[3:].strip()
+        
+        # Find the variable name (look for pattern like (x) or (x1))
+        var_match = re.search(r'\((\w+)\)', eq_part)
+        if not var_match:
+            raise ValueError(f"Error: Cannot parse linear equation at line {line_num}")
+        
+        var_name = var_match.group(1)
+        
+        # Parse coefficients
+        temp_eq = eq_part.replace(f"({var_name})", "LINEAR_TERM")
+        
+        # Extract coefficient for linear term
+        b_coef = 0
+        c_coef = 0
+        
+        # Find coefficient for linear term
+        linear_match = re.search(r'([+-]?\s*\d*\.?\d*)\s*LINEAR_TERM', temp_eq)
+        if linear_match:
+            coef_str = linear_match.group(1).replace(' ', '')
+            if coef_str == '+' or coef_str == '':
+                b_coef = 1
+            elif coef_str == '-':
+                b_coef = -1
+            else:
+                try:
+                    b_coef = float(coef_str)
+                except ValueError:
+                    # Evaluate expression if not a simple number
+                    b_coef = self._evaluate_expression(coef_str)
+        else:
+            # No coefficient found, assume 1
+            b_coef = 1
+        
+        # Find constant term (remaining numbers)
+        remaining = temp_eq.replace(linear_match.group(0) if linear_match else '', '')
+        remaining = remaining.replace('LINEAR_TERM', '')
+        remaining = remaining.strip()
+        
+        # Extract constant
+        if remaining:
+            const_match = re.search(r'([+-]?\s*\d+\.?\d*)', remaining)
+            if const_match:
+                coef_str = const_match.group(1).replace(' ', '')
+                try:
+                    c_coef = float(coef_str)
+                except ValueError:
+                    # Evaluate expression if not a simple number
+                    c_coef = self._evaluate_expression(coef_str)
+        
+        # Solve linear equation: bx + c = 0  =>  x = -c / b
+        if b_coef == 0:
+            if c_coef == 0:
+                raise ValueError(f"Error: Infinite solutions for equation at line {line_num}")
+            else:
+                raise ValueError(f"Error: No solution for equation at line {line_num}")
+        
+        solution = -c_coef / b_coef
+        
+        # Check for inconsistent redefinition
+        if var_name in self.variables:
+            old_value = self.variables[var_name]
+            if abs(old_value - solution) > 0.0001:
+                raise ValueError(f"Error: '{var_name}' is inconsistent at line {line_num}")
+        
+        self.variables[var_name] = self._approximate(solution)
     
     def _handle_quadratic(self, line, line_num):
         """Handle quadratic equation of form 0 = a((x)^2) + b(x) + c."""
@@ -522,7 +682,7 @@ class Interpreter:
             # Store the positive solution or first solution
             solution = x1 if x1 >= 0 else x2
         else:
-            # Linear equation
+            # Linear equation (fallback, though should be handled by _handle_linear)
             if b_coef != 0:
                 solution = -c_coef / b_coef
             else:
@@ -604,6 +764,18 @@ class Interpreter:
         for mantissa, exp in sci_matches:
             replacement = str(float(mantissa) * (10 ** int(exp)))
             expr = expr.replace(f"({mantissa})e({exp})", replacement)
+        
+        # Handle pi function: pi(n) returns n * pi
+        pi_pattern = r'pi\(([^)]+)\)'
+        expr = re.sub(pi_pattern, lambda m: str(self._evaluate_expression(m.group(1)) * math.pi), expr)
+
+        # Handle euler function: euler(n) returns n * e
+        euler_pattern = r'euler\(([^)]+)\)'
+        expr = re.sub(euler_pattern, lambda m: str(self._evaluate_expression(m.group(1)) * math.e), expr)
+
+        # Handle abs function: abs(n) returns absolute value
+        abs_pattern = r'abs\(([^)]+)\)'
+        expr = re.sub(abs_pattern, lambda m: str(abs(self._evaluate_expression(m.group(1)))), expr)
         
         # Handle roots: (n)√(x) or (n)root(x)
         root_pattern = r'\((\d+)\)√\(([^)]+)\)'
@@ -763,94 +935,26 @@ class Interpreter:
         
         raise ValueError(f"Variable '{var_name}' not found")
     
-    def define_variable(self, value):
-        """Dynamically define a new variable."""
-        self.dynamic_var_counter += 1
-        var_name = f"X{self.dynamic_var_counter}" if self.dynamic_var_counter > 1 else "X"
-        self.variables[var_name] = value
-        return var_name
-
-
-# Test the interpreter
-def test_interpreter():
-    """Test the ECS interpreter with sample calculations."""
-    interpreter = Interpreter()
+    def evaluate_function(self, func_name, **kwargs):
+        """Evaluate a function with given arguments."""
+        if func_name not in self.functions:
+            raise ValueError(f"Function '{func_name}' not found")
+        
+        func = self.functions[func_name]
+        return func.evaluate(self, **kwargs)
     
-    # Test basic variable assignment
-    interpreter.variables["x"] = 5
-    interpreter.variables["y"] = 3
-    
-    # Test expression evaluation
-    test_exprs = [
-        ("2 + 3", 5),
-        ("x + y", 8),
-        ("(x) * (y)", 15),
-        ("(10)/(2)", 5),
-        ("(x)^(2)", 25),
-        ("(2)√(16)", 4),
-    ]
-    
-    print("Testing expression evaluation:")
-    for expr, expected in test_exprs:
+    def _evaluate_expression_with_locals(self, expr, local_vars):
+        """Evaluate expression with local variable scope."""
+        # Store original variables
+        original_vars = self.variables.copy()
+        
         try:
-            result = interpreter._evaluate_expression(expr)
-            print(f"  {expr} = {result} (expected: {expected}) - {'PASS' if abs(result - expected) < 0.001 else 'FAIL'}")
-        except Exception as e:
-            print(f"  {expr} - ERROR: {e}")
-    
-    # Test block creation and solving
-    print("\nTesting block solving:")
-    
-    # Test Hooke's law block
-    hooke_block = ECSPBlock("spring1", "hooke")
-    hooke_block.set_variable("K", 100)
-    hooke_block.set_variable("L_init", 0.5)
-    hooke_block.set_variable("L_final", 0.7)
-    hooke_block.mark_unknown("F")
-    hooke_block.solve_unknowns()
-    
-    print(f"  Hooke's Law: Force = {hooke_block.get_variable('F')} N (expected: 20.0)")
-    print(f"  Hooke's Law: Extension L = {hooke_block.get_variable('L')} m (expected: 0.2)")
-    
-    # Test kinematics block with all variables calculated
-    kinematics_block = ECSPBlock("motion1", "kinematics")
-    kinematics_block.set_variable("u", 10)
-    kinematics_block.set_variable("a", 2)
-    kinematics_block.set_variable("t", 5)
-    # Note: v and s are not marked as unknown, but should be calculated
-    kinematics_block.solve_unknowns()
-    
-    print(f"  Kinematics: v = {kinematics_block.get_variable('v')} m/s (expected: 20.0)")
-    print(f"  Kinematics: s = {kinematics_block.get_variable('s')} m (expected: 75.0)")
-    
-    # Test error handling for unspecified variables
-    print("\nTesting error handling for unspecified variables:")
-    try:
-        ohm_block = ECSPBlock("circuit1", "ohm_law")
-        ohm_block.set_variable("v", 12)
-        # Both i and r are unknown
-        ohm_block.mark_unknown("i")
-        ohm_block.mark_unknown("r")
-        ohm_block.solve_unknowns()
-        print("  ERROR: Should have raised an exception for unspecified variables")
-    except ValueError as e:
-        print(f"  Correctly caught error: {e}")
-    
-    # Test combined gas laws
-    print("\nTesting combined gas laws:")
-    gas_block = ECSPBlock("gas1", "combined_gas_laws")
-    gas_block.set_variable("p1", 100)
-    gas_block.set_variable("v1", 2)
-    gas_block.set_variable("t1", 300)
-    gas_block.set_variable("p2", 200)
-    gas_block.set_variable("t2", 400)
-    gas_block.mark_unknown("v2")
-    gas_block.solve_unknowns()
-    
-    print(f"  Combined Gas Law: v2 = {gas_block.get_variable('v2')} L (expected: 1.33)")
-    
-    print("\nAll tests completed.")
-
-
-if __name__ == "__main__":
-    test_interpreter()
+            # Add local variables to scope (they take precedence)
+            self.variables.update(local_vars)
+            
+            # Evaluate the expression
+            result = self._evaluate_expression(expr)
+            return result
+        finally:
+            # Restore original variables
+            self.variables = original_vars

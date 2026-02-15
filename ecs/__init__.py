@@ -16,10 +16,14 @@ def get(var_name):
     """Get a variable value by name. Supports 'block.variable' syntax for ECSP blocks."""
     return _interpreter.get_variable(var_name)
 
-def define_var(value):
-    """Dynamically define a new variable with the given value."""
-    return _interpreter.define_variable(value)
+def evaluate(func_name, **kwargs):
+    """Evaluate a function defined in an .ecs file with given arguments.
+    
+    Example:
+        ecs.evaluate("f", x=4, y=9)  # evaluates f(x, y) = 2(y + x)
+    """
+    return _interpreter.evaluate_function(func_name, **kwargs)
 
 # Version info
 __version__ = "1.0.0"
-__all__ = ["add_sheet", "get", "define_var"]
+__all__ = ["add_sheet", "get", "evaluate"]
