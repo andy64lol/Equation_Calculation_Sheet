@@ -5,6 +5,7 @@ spring = hooke{
     K = 4
     L_init = 3
     L_final = 8
+    L = ?
 }
 
 gas = combined_gas_laws{
@@ -14,4 +15,51 @@ gas = combined_gas_laws{
     t2 = 6
     p2 = 8
     v2 = ?   // unknown, ECS/ECSP will solve
+}
+
+electricity = ohm_law{
+    v = ? // assumes it's volts
+    r = 10 // assumes it's ohms
+    i = 6 // assumes it's amps
+}
+
+motion = kinematics{
+    v = ?       // final velocity (m/s)
+    u = 5       // initial velocity (m/s)
+    a = 2       // acceleration (m/s²)
+    t = 3       // time (s)
+    s = ?       // displacement (m)
+}
+
+energy = energy{
+    KE = ?     // Kinetic energy (J)
+    PE = ?     // Potential energy (J)
+    m = 10     // Mass (kg)
+    v = 3      // Velocity (m/s)
+    g = 9.8    // Gravity (m/s²)
+    h = 5      // Height (m)
+}
+
+projectile = projectile_motion{
+    R = ?       // Range (m)
+    v0 = 10     // Initial speed (m/s)
+    θ = 30      // Launch angle (degrees)
+    g = 9.8     // Gravity
+    t = ?       // Flight time (s)
+    H = ?       // Max height (m)
+}
+
+circular = circular_motion{
+    F = ?       // Centripetal force (N)
+    m = 5       // Mass (kg)
+    v = 10      // Velocity (m/s)
+    r = 4       // Radius (m)
+}
+
+workpower = work_power{
+    W = ?      // Work (J)
+    P = ?      // Power (W)
+    F = 20     // Force (N)
+    d = 5      // Distance (m)
+    t = 2      // Time (s)
 }

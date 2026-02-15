@@ -33,33 +33,28 @@ class ECSPBlock:
         """Solve for unknown variables based on block type."""
         if self.block_type == "hooke":
             # Hooke's Law: F = K * (L_final - L_init)
+            K = self.variables.get("K", 0)
+            L_init = self.variables.get("L_init", 0)
+            L_final = self.variables.get("L_final", 0)
+            F = self.variables.get("F", 0)
+            
             if "F" in self.unknowns:
-                K = self.variables.get("K", 0)
-                L_init = self.variables.get("L_init", 0)
-                L_final = self.variables.get("L_final", 0)
                 self.variables["F"] = K * (L_final - L_init)
                 self.unknowns.discard("F")
-            elif "K" in self.unknowns:
-                F = self.variables.get("F", 0)
-                L_init = self.variables.get("L_init", 0)
-                L_final = self.variables.get("L_final", 0)
-                if L_final != L_init:
-                    self.variables["K"] = F / (L_final - L_init)
-                    self.unknowns.discard("K")
-            elif "L_final" in self.unknowns:
-                F = self.variables.get("F", 0)
-                K = self.variables.get("K", 0)
-                L_init = self.variables.get("L_init", 0)
-                if K != 0:
-                    self.variables["L_final"] = (F / K) + L_init
-                    self.unknowns.discard("L_final")
-            elif "L_init" in self.unknowns:
-                F = self.variables.get("F", 0)
-                K = self.variables.get("K", 0)
-                L_final = self.variables.get("L_final", 0)
-                if K != 0:
-                    self.variables["L_init"] = L_final - (F / K)
-                    self.unknowns.discard("L_init")
+            elif "K" in self.unknowns and (L_final - L_init) != 0:
+                self.variables["K"] = F / (L_final - L_init)
+                self.unknowns.discard("K")
+            elif "L_final" in self.unknowns and K != 0:
+                self.variables["L_final"] = (F / K) + L_init
+                self.unknowns.discard("L_final")
+            elif "L_init" in self.unknowns and K != 0:
+                self.variables["L_init"] = L_final - (F / K)
+                self.unknowns.discard("L_init")
+            
+            # Extension L = L_final - L_init
+            if "L" in self.unknowns:
+                self.variables["L"] = self.variables.get("L_final", 0) - self.variables.get("L_init", 0)
+                self.unknowns.discard("L")
         
         elif self.block_type == "combined_gas_laws":
             # Combined Gas Law: (P1*V1)/T1 = (P2*V2)/T2
@@ -90,6 +85,91 @@ class ECSPBlock:
             elif "t1" in self.unknowns and p1 != 0 and v1 != 0:
                 self.variables["t1"] = (p1 * v1 * t2) / (p2 * v2) if p2 != 0 and v2 != 0 else 0
                 self.unknowns.discard("t1")
+
+        elif self.block_type == "ohm_law":
+            # V = I * R
+            v = self.variables.get("v", 0)
+            i = self.variables.get("i", 0)
+            r = self.variables.get("r", 0)
+            if "v" in self.unknowns:
+                self.variables["v"] = i * r
+                self.unknowns.discard("v")
+            elif "i" in self.unknowns and r != 0:
+                self.variables["i"] = v / r
+                self.unknowns.discard("i")
+            elif "r" in self.unknowns and i != 0:
+                self.variables["r"] = v / i
+                self.unknowns.discard("r")
+
+        elif self.block_type == "kinematics":
+            # v = u + at, s = ut + 0.5at^2
+            v = self.variables.get("v", 0)
+            u = self.variables.get("u", 0)
+            a = self.variables.get("a", 0)
+            t = self.variables.get("t", 0)
+            s = self.variables.get("s", 0)
+            
+            if "v" in self.unknowns:
+                self.variables["v"] = u + (a * t)
+                self.unknowns.discard("v")
+            if "s" in self.unknowns:
+                self.variables["s"] = (u * t) + (0.5 * a * (t**2))
+                self.unknowns.discard("s")
+
+        elif self.block_type == "energy":
+            # KE = 0.5 * m * v^2, PE = m * g * h
+            m = self.variables.get("m", 0)
+            v = self.variables.get("v", 0)
+            g = self.variables.get("g", 9.8)
+            h = self.variables.get("h", 0)
+            
+            if "KE" in self.unknowns:
+                self.variables["KE"] = 0.5 * m * (v**2)
+                self.unknowns.discard("KE")
+            if "PE" in self.unknowns:
+                self.variables["PE"] = m * g * h
+                self.unknowns.discard("PE")
+
+        elif self.block_type == "projectile_motion":
+            # R = (v0^2 * sin(2θ)) / g, H = (v0^2 * sin(θ)^2) / (2g), t = (2 * v0 * sin(θ)) / g
+            v0 = self.variables.get("v0", 0)
+            theta_deg = self.variables.get("theta", self.variables.get("θ", 0))
+            theta = math.radians(theta_deg)
+            g = self.variables.get("g", 9.8)
+            
+            if "R" in self.unknowns:
+                self.variables["R"] = (v0**2 * math.sin(2 * theta)) / g
+                self.unknowns.discard("R")
+            if "t" in self.unknowns:
+                self.variables["t"] = (2 * v0 * math.sin(theta)) / g
+                self.unknowns.discard("t")
+            if "H" in self.unknowns:
+                self.variables["H"] = (v0**2 * (math.sin(theta)**2)) / (2 * g)
+                self.unknowns.discard("H")
+
+        elif self.block_type == "circular_motion":
+            # F = (m * v^2) / r
+            m = self.variables.get("m", 0)
+            v = self.variables.get("v", 0)
+            r = self.variables.get("r", 1)
+            if "F" in self.unknowns and r != 0:
+                self.variables["F"] = (m * (v**2)) / r
+                self.unknowns.discard("F")
+
+        elif self.block_type == "work_power":
+            # W = F * d, P = W / t
+            f = self.variables.get("F", 0)
+            d = self.variables.get("d", 0)
+            t = self.variables.get("t", 1)
+            
+            if "W" in self.unknowns:
+                self.variables["W"] = f * d
+                self.unknowns.discard("W")
+            if "P" in self.unknowns:
+                w = self.variables.get("W", f * d)
+                if t != 0:
+                    self.variables["P"] = w / t
+                    self.unknowns.discard("P")
 
 
 class Interpreter:
@@ -277,7 +357,8 @@ class Interpreter:
         discriminant = b_coef**2 - 4*a_coef*c_coef
         
         if discriminant < 0:
-            raise ValueError(f"Error: No real solution for quadratic at line {line_num}")
+            print(f"negative discriminant for equation ({line})")
+            return
         
         # Use quadratic formula
         if a_coef != 0:

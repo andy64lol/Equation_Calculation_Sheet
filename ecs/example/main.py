@@ -28,6 +28,12 @@ print("spring F =", ecs.get("spring.F"))                 # 20
 print("spring K =", ecs.get("spring.K"))                 # 4
 print("spring extension =", ecs.get("spring.L_final") - ecs.get("spring.L_init"))  # 5
 print("gas v2 =", ecs.get("gas.v2"))                     # solved value
+print("ohm v =", ecs.get("electricity.v"))
+print("kinematics v =", ecs.get("motion.v"))
+print("energy KE =", ecs.get("energy.KE"))
+print("projectile R =", ecs.get("projectile.R"))
+print("circular F =", ecs.get("circular.F"))
+print("workpower P =", ecs.get("workpower.P"))
 
 # ----------------------------
 # Access imported ECS constants
