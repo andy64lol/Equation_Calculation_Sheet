@@ -191,14 +191,16 @@ class ECSPBlock:
                     self.unknowns.discard("v")
             if "s" in self.unknowns:
                 if u is not None and a is not None and t is not None:
-                    self.variables["s"] = (u * t) + (0.5 * a * (t**2))
+                    s_val = (u * t) + (0.5 * a * (t**2))
+                    self.variables["s"] = s_val
                     self.unknowns.discard("s")
             
             # Calculate all possible variables even if not marked as unknown
             if "v" not in self.variables and u is not None and a is not None and t is not None:
                 self.variables["v"] = u + (a * t)
             if "s" not in self.variables and u is not None and a is not None and t is not None:
-                self.variables["s"] = (u * t) + (0.5 * a * (t**2))
+                s_val = (u * t) + (0.5 * a * (t**2))
+                self.variables["s"] = s_val
             
             self._check_and_raise_unspecified()
         
@@ -546,12 +548,12 @@ class Interpreter:
                         try:
                             value = self._evaluate_expression(value_str)
                             block.set_variable(var_name, value)
-                        except Exception as e:
+                        except (ValueError, TypeError, Exception) as e:
                             # Try to evaluate as number directly
                             try:
                                 value = float(value_str)
                                 block.set_variable(var_name, value)
-                            except:
+                            except (ValueError, TypeError):
                                 raise ValueError(f"Error parsing variable '{var_name}' in block '{block_name}': {e}")
             
             # Solve unknowns
@@ -619,7 +621,7 @@ class Interpreter:
             else:
                 try:
                     left_val = float(left)
-                except:
+                except (ValueError, TypeError):
                     left_val = left
             
             # Evaluate right
@@ -688,7 +690,7 @@ class Interpreter:
         # Try to parse as number
         try:
             return float(expr)
-        except:
+        except (ValueError, TypeError):
             pass
         
         # Handle negative numbers in parentheses: (-7)
@@ -697,12 +699,12 @@ class Interpreter:
             if inner.startswith('-'):
                 try:
                     return float(inner)
-                except:
+                except (ValueError, TypeError):
                     pass
             # Try evaluating inner expression
             try:
                 return self._evaluate_expression(inner)
-            except:
+            except (ValueError, TypeError, Exception):
                 pass
         
         raise ValueError(f"Cannot evaluate expression: {expr}")
